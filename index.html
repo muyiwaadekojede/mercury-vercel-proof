@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Mercury Vercel Git Removal Proof Active</title>
+    <script>
+(() => {
+  const fixtureId = "vercel-git-removal-live";
+  const runId = "mp7vgn7m";
+  const collectorUrl = "https://httpbingo.org/anything";
+  const sessionId = "vercel-removal-live-" + runId;
+  window.__MERCURY_PROOF_SESSION_ID__ = sessionId;
+  const payload = {
+    fixtureId,
+    sessionId,
+    type: "vercel_git_removal_active",
+    runId,
+    page: location.href
+  };
+
+  Promise.all([
+    fetch(collectorUrl + "?kind=heartbeat&fixtureId=" + encodeURIComponent(fixtureId) + "&sessionId=" + encodeURIComponent(sessionId), {
+      method: "GET",
+      mode: "cors"
+    }),
+    fetch(collectorUrl, {
+      method: "POST",
+      mode: "cors",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+  ]).then(async ([heartbeatResponse, eventResponse]) => {
+    const eventEcho = await eventResponse.json();
+    window.__MERCURY_PROOF_EVIDENCE__ = {
+      fixtureId,
+      sessionId,
+      heartbeatOk: heartbeatResponse.ok,
+      eventOk: eventResponse.ok,
+      heartbeatStatus: heartbeatResponse.status,
+      eventStatus: eventResponse.status,
+      eventMethod: String(eventEcho.method || "")
+    };
+  }).catch((error) => {
+    window.__MERCURY_PROOF_EVIDENCE__ = {
+      fixtureId,
+      sessionId,
+      heartbeatOk: false,
+      eventOk: false,
+      heartbeatStatus: 0,
+      eventStatus: 0,
+      eventMethod: String(error && error.message ? error.message : error)
+    };
+  });
+})();
+</script>
+  </head>
+  <body>
+    <main>
+      <h1>Mercury Vercel Git Removal Proof Active</h1>
+      <p data-active-run="mp7vgn7m">This page proves Mercury is active before removal.</p>
+    </main>
+  </body>
+</html>
