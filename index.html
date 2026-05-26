@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Mercury Checkout Boundary Proof</title>
+    <script>
+(() => {
+  const runId = "mpmo09pk";
+  const collectorUrl = "https://httpbingo.org/anything";
+  const maskedProof = {"maskedEmail":"[masked-email]","maskedPhone":"[masked-phone]","maskedCard":"[masked-card]","maskedPassword":"[masked-password]","maskedOtp":"[masked-otp]","maskedAddress":"[masked-address]","maskedPrivateMessage":"[masked-private-message]"};
+  const fixtureId = "github-pages-checkout-boundary-live";
+  const sessionId = fixtureId + "-" + runId;
+  const checkoutId = "checkout-" + runId;
+
+  async function sendWithRetry(url, init) {
+    let lastError;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        const response = await fetch(url, init);
+
+        if (response.ok || attempt === 4) {
+          return response;
+        }
+
+        lastError = new Error("HTTP " + response.status);
+      } catch (error) {
+        lastError = error;
+
+        if (attempt === 4) {
+          throw error;
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+    }
+
+    throw lastError;
+  }
+
+  function payload(event, extra) {
+    return {
+      fixtureId,
+      sessionId,
+      checkoutId,
+      event,
+      runId,
+      page: location.href,
+      consentState: "replay_allowed",
+      privacyMaskingProof: maskedProof,
+      ...extra
+    };
+  }
+
+  sendWithRetry(collectorUrl + "?kind=heartbeat&fixtureId=" + encodeURIComponent(fixtureId) + "&sessionId=" + encodeURIComponent(sessionId), {
+    method: "GET",
+    mode: "cors"
+  }).catch(() => undefined);
+
+  document.addEventListener("click", (event) => {
+    const link = event.target && event.target.closest ? event.target.closest("[data-checkout-link]") : null;
+
+    if (!link) {
+      return;
+    }
+
+    localStorage.setItem("mercuryCheckoutId", checkoutId);
+    sendWithRetry(collectorUrl, {
+      method: "POST",
+      mode: "cors",
+      body: JSON.stringify(payload("checkout_outbound_click", { providerUrl: link.href }))
+    }).catch(() => undefined);
+  }, { capture: true });
+
+  if (new URL(location.href).searchParams.get("checkout_return") === "success") {
+    const returnPayload = payload("checkout_return", { returnUrl: location.href });
+    const webhookPayload = payload("checkout_webhook", { result: "paid" });
+
+    Promise.all([
+      sendWithRetry(collectorUrl, { method: "POST", mode: "cors", body: JSON.stringify(returnPayload) }),
+      sendWithRetry(collectorUrl + "?kind=checkout-webhook&checkoutId=" + encodeURIComponent(checkoutId), {
+        method: "POST",
+        mode: "cors",
+        body: JSON.stringify(webhookPayload)
+      })
+    ]).then(() => {
+      window.__MERCURY_CHECKOUT_EVIDENCE__ = {
+        fixtureId,
+        sessionId,
+        checkoutId,
+        heartbeatOk: true,
+        eventOk: true,
+        outboundClickSeen: localStorage.getItem("mercuryCheckoutId") === checkoutId,
+        returnUrlSeen: true,
+        webhookResult: "paid",
+        returnUrl: location.href,
+        consentState: "replay_allowed",
+        privacyMaskingProof: maskedProof
+      };
+    }).catch((error) => {
+      window.__MERCURY_CHECKOUT_EVIDENCE__ = {
+        fixtureId,
+        sessionId,
+        checkoutId,
+        heartbeatOk: false,
+        eventOk: false,
+        outboundClickSeen: localStorage.getItem("mercuryCheckoutId") === checkoutId,
+        returnUrlSeen: false,
+        webhookResult: String(error && error.message ? error.message : error),
+        returnUrl: location.href,
+        consentState: "unknown",
+        privacyMaskingProof: {}
+      };
+    });
+  }
+})();
+</script>
+  </head>
+  <body>
+    <main>
+      <h1>Mercury Checkout Boundary Proof</h1>
+      <p data-checkout-run="mpmo09pk">This page proves outbound checkout, return URL, and webhook-like result.</p>
+      <a href="https://example.com/?checkoutId=checkout-mpmo09pk" data-checkout-link>Go to checkout</a>
+    </main>
+  </body>
+</html>
